@@ -1,0 +1,48 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.buildlog/
+.history
+.svn/
+migrate_working_dir/
+
+# IntelliJ
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# Flutter/Dart/Pub
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+flutter_*.png
+server.log
+flutter.log
+
+# Android
+android/.gradle
+android/build/
+android/app/build/
+android/.idea
+**/android/**/gradle-wrapper.jar
+.gradle/
+local.properties
+key.properties
+*.jks
+
+# Web
+lib/generated_plugin_registrant.dart
+
+# Symbolication & Obfuscation
+app.*.symbols
+app.*.map.json
