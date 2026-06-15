@@ -8,6 +8,7 @@ class CarPainter {
     Color color, {
     required bool isPlayer,
     double exhaustGlow = 0,
+    bool boosting = false,
   }) {
     final w = size.width;
     final h = size.height;
@@ -106,11 +107,13 @@ class CarPainter {
 
     // Exhaust glow for player
     if (isPlayer && exhaustGlow > 0) {
+      final glowColor = boosting ? const Color(0xFFFF7A3D) : const Color(0xFF22E0FF);
       final ex = Paint()
-        ..color = const Color(0xFF22E0FF).withValues(alpha: 0.5 * exhaustGlow)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
-      canvas.drawCircle(Offset(w * 0.3, h + 6), 6 * exhaustGlow, ex);
-      canvas.drawCircle(Offset(w * 0.7, h + 6), 6 * exhaustGlow, ex);
+        ..color = glowColor.withValues(alpha: (0.5 * exhaustGlow).clamp(0.0, 0.9))
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, boosting ? 12 : 8);
+      final r = (boosting ? 9 : 6) * exhaustGlow.clamp(0.0, 1.6);
+      canvas.drawCircle(Offset(w * 0.3, h + 6), r, ex);
+      canvas.drawCircle(Offset(w * 0.7, h + 6), r, ex);
     }
   }
 }

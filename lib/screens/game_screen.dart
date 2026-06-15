@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../core/theme.dart';
 import '../game/racing_game.dart';
 import '../models/environment.dart';
+import '../models/vehicle.dart';
 import '../state/game_state.dart';
 import '../widgets/common.dart';
 
@@ -20,6 +21,7 @@ class GameScreen extends StatefulWidget {
 
 class _GameScreenState extends State<GameScreen> {
   late RacingGame _game;
+  late String _vehicleId;
   HudState _hud = const HudState(
     speedKmh: 0,
     maxKmh: 0,
@@ -28,23 +30,31 @@ class _GameScreenState extends State<GameScreen> {
     combo: 0,
     comboFrac: 0,
     overtakes: 0,
+    nearMisses: 0,
+    nitro: 0.4,
+    nitroActive: false,
+    slipstreaming: false,
     phase: GamePhase.running,
   );
 
   int _countdown = 3;
   bool _started = false;
   bool _resultRecorded = false;
+  bool _usedContinue = false;
   Timer? _timer;
 
   @override
   void initState() {
     super.initState();
     final gs = context.read<GameState>();
+    _vehicleId = gs.selectedVehicleId;
     _game = RacingGame(
       vehicle: gs.selectedVehicle,
-      stats: gs.statsFor(gs.selectedVehicleId),
+      stats: gs.statsFor(_vehicleId),
       environment: widget.environment,
       weather: widget.weather,
+      reducedFlashing: gs.reducedFlashing,
+      colorblindMode: gs.colorblindMode,
       onStateChanged: _onHud,
     );
     _startCountdown();
@@ -54,9 +64,7 @@ class _GameScreenState extends State<GameScreen> {
     _timer = Timer.periodic(const Duration(milliseconds: 800), (t) {
       if (_countdown <= 1) {
         t.cancel();
-        setState(() {
-          _started = true;
-        });
+        setState(() => _started = true);
         _game.beginRace();
       } else {
         setState(() => _countdown--);
@@ -74,14 +82,20 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   void _recordResult() {
-    final score = _hud.distance + _hud.cash + _hud.overtakes * 25;
-    context.read<GameState>().recordRace(
-          cashEarned: _hud.cash,
-          overtakes: _hud.overtakes,
-          maxCombo: _game.maxCombo,
-          distance: _hud.distance,
-          score: score,
-        );
+    final gs = context.read<GameState>();
+    final masteryLvl = gs.masteryLevel(_vehicleId);
+    final boosted = (_hud.cash * Mastery.cashBonus(masteryLvl)).round();
+    final score = _hud.distance + boosted + _hud.overtakes * 25;
+    gs.recordRace(
+      vehicleId: _vehicleId,
+      cashEarned: boosted,
+      overtakes: _hud.overtakes,
+      nearMisses: _hud.nearMisses,
+      maxCombo: _game.maxCombo,
+      distance: _hud.distance,
+      score: score,
+      ghostTrack: _game.ghostTrack,
+    );
   }
 
   @override
@@ -110,9 +124,18 @@ class _GameScreenState extends State<GameScreen> {
                   const SizedBox(width: 8),
                   _hudPill(Icons.route_rounded, '${_hud.distance}m', AppColors.neonCyan),
                   const Spacer(),
+                  if (_hud.slipstreaming && !crashed)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: AppColors.neonCyan.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Text('SLIPSTREAM',
+                          style: AppTheme.body(12, color: AppColors.neonCyan, weight: FontWeight.w800)),
+                    ),
                   IconButton(
-                    onPressed: () => Navigator.of(context)
-                        .popUntil((r) => r.isFirst),
+                    onPressed: () => Navigator.of(context).popUntil((r) => r.isFirst),
                     icon: const Icon(Icons.close_rounded, color: Colors.white70),
                   ),
                 ],
@@ -120,7 +143,6 @@ class _GameScreenState extends State<GameScreen> {
             ),
           ),
 
-          // Combo indicator (center top)
           if (_hud.combo > 1 && !crashed)
             Positioned(
               top: MediaQuery.of(context).padding.top + 44,
@@ -129,27 +151,29 @@ class _GameScreenState extends State<GameScreen> {
               child: Center(child: _comboWidget()),
             ),
 
-          // Speedometer (bottom-left)
           if (!crashed)
-            Positioned(
-              left: 16,
-              bottom: 24,
-              child: _speedometer(),
-            ),
+            Positioned(left: 16, bottom: 24, child: _speedometer()),
 
-          // Countdown
+          // Nitro control (bottom-right) — tap & hold to boost
+          if (!crashed && _started)
+            Positioned(right: 16, bottom: 24, child: _nitroButton()),
+
           if (!_started && !crashed)
             Container(
               color: Colors.black.withValues(alpha: 0.4),
               child: Center(
-                child: Text(
-                  _countdown > 0 ? '$_countdown' : 'GO!',
-                  style: AppTheme.display(90, color: Colors.white, weight: FontWeight.w900),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(_countdown > 0 ? '$_countdown' : 'GO!',
+                        style: AppTheme.display(90, color: Colors.white, weight: FontWeight.w900)),
+                    Text('Hold NITRO • Steer to dodge',
+                        style: AppTheme.body(14, color: AppColors.textSecondary)),
+                  ],
                 ),
               ),
             ),
 
-          // Game over
           if (crashed) _gameOverPanel(),
         ],
       ),
@@ -205,6 +229,48 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
+  Widget _nitroButton() {
+    final hasNitro = _hud.nitro > 0.05;
+    return GestureDetector(
+      onTapDown: (_) => _game.activateNitro(),
+      onTapUp: (_) => _game.deactivateNitro(),
+      onTapCancel: () => _game.deactivateNitro(),
+      child: Container(
+        width: 82,
+        height: 82,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: _hud.nitroActive
+              ? AppColors.neonOrange.withValues(alpha: 0.4)
+              : Colors.black.withValues(alpha: 0.5),
+          border: Border.all(
+              color: hasNitro ? AppColors.neonOrange : AppColors.textDim, width: 3),
+          boxShadow: _hud.nitroActive
+              ? [BoxShadow(color: AppColors.neonOrange.withValues(alpha: 0.6), blurRadius: 18)]
+              : null,
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            SizedBox(
+              width: 70,
+              height: 70,
+              child: CircularProgressIndicator(
+                value: _hud.nitro,
+                strokeWidth: 5,
+                backgroundColor: Colors.white12,
+                valueColor: AlwaysStoppedAnimation(
+                    hasNitro ? AppColors.neonOrange : AppColors.textDim),
+              ),
+            ),
+            const Icon(Icons.local_fire_department_rounded,
+                color: Colors.white, size: 30),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _speedometer() {
     final frac = _hud.maxKmh > 0 ? (_hud.speedKmh / _hud.maxKmh).clamp(0.0, 1.0) : 0.0;
     return Container(
@@ -241,7 +307,9 @@ class _GameScreenState extends State<GameScreen> {
 
   Widget _gameOverPanel() {
     final gs = context.read<GameState>();
-    final score = _hud.distance + _hud.cash + _hud.overtakes * 25;
+    final masteryLvl = gs.masteryLevel(_vehicleId);
+    final boosted = (_hud.cash * Mastery.cashBonus(masteryLvl)).round();
+    final score = _hud.distance + boosted + _hud.overtakes * 25;
     final isHighScore = score >= gs.highScore && score > 0;
 
     return Container(
@@ -259,17 +327,34 @@ class _GameScreenState extends State<GameScreen> {
                   Text('CRASHED', style: AppTheme.display(30, color: AppColors.neonMagenta)),
                   if (isHighScore) ...[
                     const SizedBox(height: 4),
-                    Text('🏆 NEW HIGH SCORE!',
+                    Text('NEW HIGH SCORE!',
                         style: AppTheme.body(14, color: AppColors.neonYellow, weight: FontWeight.w700)),
                   ],
                   const SizedBox(height: 18),
                   _resultRow('Score', fmtCash(score), AppColors.neonYellow),
                   _resultRow('Distance', '${_hud.distance} m', AppColors.neonCyan),
                   _resultRow('Overtakes', '${_hud.overtakes}', AppColors.neonGreen),
+                  _resultRow('Near Misses', '${_hud.nearMisses}', AppColors.neonOrange),
                   _resultRow('Best Combo', '${_game.maxCombo}x', AppColors.neonMagenta),
                   const Divider(color: Colors.white24, height: 28),
-                  _resultRow('Cash Earned', '+\$${_hud.cash}', AppColors.neonGreen, big: true),
+                  _resultRow('Cash Earned', '+\$$boosted', AppColors.neonGreen, big: true),
+                  if (Mastery.cashBonus(masteryLvl) > 1.0)
+                    Text('includes +${(Mastery.cashBonus(masteryLvl) * 100 - 100).toInt()}% mastery bonus',
+                        style: AppTheme.body(11, color: AppColors.textDim)),
                   const SizedBox(height: 22),
+
+                  // Continue run (rewarded-ad style) — once per race
+                  if (!_usedContinue)
+                    NeonButton(
+                      label: 'WATCH AD • CONTINUE',
+                      icon: Icons.ondemand_video_rounded,
+                      height: 52,
+                      gradient: const LinearGradient(
+                          colors: [AppColors.neonCyan, AppColors.neonGreen]),
+                      onTap: _continueRun,
+                    ),
+                  if (!_usedContinue) const SizedBox(height: 10),
+
                   NeonButton(
                     label: 'RACE AGAIN',
                     icon: Icons.replay_rounded,
@@ -296,6 +381,14 @@ class _GameScreenState extends State<GameScreen> {
         ),
       ),
     );
+  }
+
+  void _continueRun() {
+    setState(() {
+      _usedContinue = true;
+      _resultRecorded = false; // allow recording again after the new run ends
+    });
+    _game.continueRun();
   }
 
   Widget _resultRow(String label, String value, Color color, {bool big = false}) {

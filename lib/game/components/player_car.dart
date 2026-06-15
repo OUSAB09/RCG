@@ -11,6 +11,7 @@ class PlayerCar extends PositionComponent with HasGameReference {
   double tilt = 0; // -1..1 steer lean
   double homeY = 0;
   bool crashed = false;
+  bool boosting = false;
   double _t = 0;
 
   @override
@@ -35,14 +36,16 @@ class PlayerCar extends PositionComponent with HasGameReference {
     canvas.rotate(tilt * 0.10);
     canvas.translate(-size.x / 2, -size.y / 2);
 
-    // Exhaust glow flicker
-    final glow = 0.6 + 0.4 * math.sin(_t * 18);
+    // Exhaust glow flicker (stronger when boosting)
+    final base = boosting ? 1.4 : 0.6;
+    final glow = base + 0.4 * math.sin(_t * (boosting ? 32 : 18));
     CarPainter.draw(
       canvas,
       size.toSize(),
       color,
       isPlayer: true,
       exhaustGlow: crashed ? 0 : glow,
+      boosting: boosting,
     );
     canvas.restore();
   }

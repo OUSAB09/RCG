@@ -24,11 +24,26 @@ class ApexRushApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return ChangeNotifierProvider.value(
       value: gameState,
-      child: MaterialApp(
-        title: 'Apex Rush',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.dark,
-        home: const _Boot(),
+      child: Consumer<GameState>(
+        builder: (context, gs, _) {
+          return MaterialApp(
+            title: 'Apex Rush',
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.dark,
+            builder: (context, child) {
+              // Accessibility (Phase L): global large-text scaling.
+              final scale = gs.largeText ? 1.18 : 1.0;
+              final media = MediaQuery.of(context);
+              return MediaQuery(
+                data: media.copyWith(
+                  textScaler: TextScaler.linear(scale),
+                ),
+                child: child!,
+              );
+            },
+            home: const _Boot(),
+          );
+        },
       ),
     );
   }

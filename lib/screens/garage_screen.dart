@@ -33,6 +33,7 @@ class _GarageScreenState extends State<GarageScreen> {
     final stats = gs.statsFor(_viewId);
     final isOwned = gs.owns(_viewId);
     final isSelected = gs.selectedVehicleId == _viewId;
+    final displayColor = gs.displayColor(_viewId);
 
     return Scaffold(
       appBar: AppBar(
@@ -69,9 +70,10 @@ class _GarageScreenState extends State<GarageScreen> {
                     ]),
                     border: Border.all(color: vehicle.vClass.color.withValues(alpha: 0.4)),
                   ),
-                  child: Center(child: CarPreview(color: vehicle.bodyColor, width: 80, height: 150)),
+                  child: Center(child: CarPreview(color: displayColor, width: 80, height: 150)),
                 ),
                 const SizedBox(height: 12),
+                if (isOwned) _masteryBar(gs),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -110,6 +112,16 @@ class _GarageScreenState extends State<GarageScreen> {
                           value: stats.handling,
                           color: AppColors.neonGreen,
                           icon: Icons.sync_alt_rounded),
+                      StatBar(
+                          label: 'Nitro',
+                          value: stats.nitroPower,
+                          color: AppColors.neonOrange,
+                          icon: Icons.local_fire_department_rounded),
+                      StatBar(
+                          label: 'Stability',
+                          value: stats.stability,
+                          color: AppColors.neonPurple,
+                          icon: Icons.memory_rounded),
                       const SizedBox(height: 4),
                       Text('Top speed ${stats.topSpeed.toInt()} km/h',
                           style: AppTheme.body(13, color: AppColors.textDim)),
@@ -188,7 +200,7 @@ class _GarageScreenState extends State<GarageScreen> {
                             children: [
                               Opacity(
                                 opacity: owns ? 1 : 0.35,
-                                child: CarPreview(color: v.bodyColor, width: 34, height: 64),
+                                child: CarPreview(color: gs.displayColor(v.id), width: 34, height: 64),
                               ),
                               if (!owns)
                                 const Icon(Icons.lock_rounded, color: Colors.white70, size: 22),
@@ -207,6 +219,44 @@ class _GarageScreenState extends State<GarageScreen> {
     );
   }
 
+  Widget _masteryBar(GameState gs) {
+    final (level, into, next) = gs.masteryProgress(_viewId);
+    final frac = next == 0 ? 1.0 : (into / next).clamp(0.0, 1.0);
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.workspace_premium_rounded,
+                  size: 16, color: AppColors.neonYellow),
+              const SizedBox(width: 6),
+              Text('MASTERY  Lv $level',
+                  style: AppTheme.body(13, color: AppColors.neonYellow, weight: FontWeight.w700)),
+              const SizedBox(width: 6),
+              Text(next == 0 ? 'MAX' : '+${(Mastery.cashBonus(level) * 100 - 100).toInt()}% cash',
+                  style: AppTheme.body(12, color: AppColors.textDim)),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 40),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: frac,
+                minHeight: 6,
+                backgroundColor: AppColors.bgElevated,
+                valueColor: const AlwaysStoppedAnimation(AppColors.neonYellow),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _upgradesSection(GameState gs, Vehicle v) {
     return NeonCard(
       glow: AppColors.neonMagenta,
@@ -215,10 +265,7 @@ class _GarageScreenState extends State<GarageScreen> {
         children: [
           Text('UPGRADES', style: AppTheme.display(16, color: AppColors.neonMagenta)),
           const SizedBox(height: 8),
-          _upgradeRow(gs, v, UpgradeType.engine, 'Engine', Icons.settings_rounded),
-          _upgradeRow(gs, v, UpgradeType.tires, 'Tires', Icons.trip_origin_rounded),
-          _upgradeRow(gs, v, UpgradeType.weight, 'Weight Reduction', Icons.fitness_center_rounded),
-          _upgradeRow(gs, v, UpgradeType.aero, 'Aerodynamics', Icons.air_rounded),
+          for (final t in UpgradeType.values) _upgradeRow(gs, v, t, t.label, t.icon),
         ],
       ),
     );

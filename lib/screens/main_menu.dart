@@ -12,6 +12,8 @@ import 'leaderboard_screen.dart';
 import 'achievements_screen.dart';
 import 'settings_screen.dart';
 import 'race_setup_screen.dart';
+import 'missions_screen.dart';
+import 'cosmetics_screen.dart';
 
 class MainMenu extends StatefulWidget {
   const MainMenu({super.key});
@@ -101,7 +103,8 @@ class _MainMenuState extends State<MainMenu> with SingleTickerProviderStateMixin
                             ]),
                           ),
                           child: Center(
-                            child: CarPreview(color: vehicle.bodyColor, width: 90, height: 168),
+                            child: CarPreview(
+                                color: gs.displayColor(vehicle.id), width: 90, height: 168),
                           ),
                         ),
                         const SizedBox(height: 6),
@@ -143,9 +146,9 @@ class _MainMenuState extends State<MainMenu> with SingleTickerProviderStateMixin
 
               const SizedBox(height: 12),
 
-              // Menu grid
+              // Menu grid - row 1
               Padding(
-                padding: const EdgeInsets.fromLTRB(24, 0, 24, 18),
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
                 child: Row(
                   children: [
                     _menuTile(Icons.garage_rounded, 'GARAGE', AppColors.neonCyan,
@@ -153,6 +156,21 @@ class _MainMenuState extends State<MainMenu> with SingleTickerProviderStateMixin
                     const SizedBox(width: 12),
                     _menuTile(Icons.storefront_rounded, 'SHOP', AppColors.neonGreen,
                         () => _go(const ShopScreen())),
+                    const SizedBox(width: 12),
+                    _menuTile(Icons.palette_rounded, 'PAINT', AppColors.neonOrange,
+                        () => _go(const CosmeticsScreen())),
+                  ],
+                ),
+              ),
+
+              // Menu grid - row 2
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 18),
+                child: Row(
+                  children: [
+                    _menuTile(Icons.assignment_turned_in_rounded, 'MISSIONS',
+                        AppColors.neonPurple, () => _go(const MissionsScreen()),
+                        badge: gs.claimableMissions),
                     const SizedBox(width: 12),
                     _menuTile(Icons.leaderboard_rounded, 'RANKS', AppColors.neonYellow,
                         () => _go(const LeaderboardScreen())),
@@ -178,18 +196,41 @@ class _MainMenuState extends State<MainMenu> with SingleTickerProviderStateMixin
     );
   }
 
-  Widget _menuTile(IconData icon, String label, Color color, VoidCallback onTap) {
+  Widget _menuTile(IconData icon, String label, Color color, VoidCallback onTap,
+      {int badge = 0}) {
     return Expanded(
       child: NeonCard(
         glow: color,
         padding: const EdgeInsets.symmetric(vertical: 14),
         onTap: onTap,
-        child: Column(
+        child: Stack(
+          clipBehavior: Clip.none,
           children: [
-            Icon(icon, color: color, size: 26),
-            const SizedBox(height: 6),
-            Text(label,
-                style: AppTheme.body(11, color: AppColors.textSecondary, weight: FontWeight.w700)),
+            Column(
+              children: [
+                Icon(icon, color: color, size: 26),
+                const SizedBox(height: 6),
+                Text(label,
+                    style: AppTheme.body(11,
+                        color: AppColors.textSecondary, weight: FontWeight.w700)),
+              ],
+            ),
+            if (badge > 0)
+              Positioned(
+                top: -8,
+                right: -4,
+                child: Container(
+                  padding: const EdgeInsets.all(5),
+                  decoration: const BoxDecoration(
+                    color: AppColors.neonGreen,
+                    shape: BoxShape.circle,
+                  ),
+                  constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                  child: Text('$badge',
+                      textAlign: TextAlign.center,
+                      style: AppTheme.body(10, color: Colors.black, weight: FontWeight.w900)),
+                ),
+              ),
           ],
         ),
       ),

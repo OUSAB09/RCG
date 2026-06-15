@@ -41,7 +41,6 @@ key.properties
 *.jks
 
 # Web
-lib/generated_plugin_registrant.dart
 
 # Symbolication & Obfuscation
 app.*.symbols

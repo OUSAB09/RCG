@@ -36,7 +36,41 @@ class SettingsScreen extends StatelessWidget {
                         'Pass cars closely to earn more cash — Near, Close, Extreme'),
                     _tip(Icons.bolt_rounded, 'Combos',
                         'Chain quick passes to multiply rewards up to 8x'),
+                    _tip(Icons.local_fire_department_rounded, 'Nitro',
+                        'Hold SPACE / W (or the Nitro button) to boost'),
                     _tip(Icons.warning_amber_rounded, 'Crash', 'Hitting traffic ends the run'),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              NeonCard(
+                glow: AppColors.neonPurple,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('ACCESSIBILITY', style: AppTheme.display(16, color: AppColors.neonPurple)),
+                    const SizedBox(height: 4),
+                    _toggle(
+                      'Reduced Flashing',
+                      'Fewer particle & burst effects',
+                      Icons.flash_off_rounded,
+                      gs.reducedFlashing,
+                      gs.setReducedFlashing,
+                    ),
+                    _toggle(
+                      'Colorblind Mode',
+                      'High-contrast pass labels & icons',
+                      Icons.visibility_rounded,
+                      gs.colorblindMode,
+                      gs.setColorblind,
+                    ),
+                    _toggle(
+                      'Large Text',
+                      'Increase in-app text size',
+                      Icons.text_fields_rounded,
+                      gs.largeText,
+                      gs.setLargeText,
+                    ),
                   ],
                 ),
               ),
@@ -66,7 +100,7 @@ class SettingsScreen extends StatelessWidget {
               ),
               const SizedBox(height: 24),
               Center(
-                child: Text('Apex Rush  •  v1.0',
+                child: Text('Apex Rush  •  v2.0',
                     style: AppTheme.body(12, color: AppColors.textDim)),
               ),
             ],
@@ -92,6 +126,33 @@ class SettingsScreen extends StatelessWidget {
                 Text(body, style: AppTheme.body(13, color: AppColors.textSecondary)),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _toggle(String title, String subtitle, IconData icon, bool value,
+      void Function(bool) onChanged) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(icon, color: AppColors.neonPurple, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: AppTheme.body(14, weight: FontWeight.w700)),
+                Text(subtitle, style: AppTheme.body(12, color: AppColors.textSecondary)),
+              ],
+            ),
+          ),
+          Switch(
+            value: value,
+            activeThumbColor: AppColors.neonPurple,
+            onChanged: onChanged,
           ),
         ],
       ),

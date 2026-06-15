@@ -17,8 +17,19 @@ enum VehicleClass {
   final Color color;
 }
 
-/// Upgrade categories from the GDD progression system.
-enum UpgradeType { engine, tires, weight, aero }
+/// Upgrade categories from the development plan (Phase D).
+enum UpgradeType {
+  engine('Engine', Icons.settings_rounded),
+  tires('Tires', Icons.trip_origin_rounded),
+  weight('Weight', Icons.fitness_center_rounded),
+  aero('Aero', Icons.air_rounded),
+  nitro('Nitro', Icons.local_fire_department_rounded),
+  electronics('Electronics', Icons.memory_rounded);
+
+  const UpgradeType(this.label, this.icon);
+  final String label;
+  final IconData icon;
+}
 
 /// Static vehicle definition. The actual performance is derived from a
 /// physics simulation of Engine Power, Weight, Drag and Grip — exactly as the
@@ -57,11 +68,15 @@ class VehicleStats {
   final double topSpeed; // km/h (display) -> internal world units handled in game
   final double acceleration; // 0..1 normalized
   final double handling; // 0..1 normalized
+  final double nitroPower; // 0..1 boost strength
+  final double stability; // 0..1 electronics: traction/abs/weather resistance
 
   const VehicleStats({
     required this.topSpeed,
     required this.acceleration,
     required this.handling,
+    required this.nitroPower,
+    required this.stability,
   });
 
   /// Physics-driven resolution.
@@ -73,6 +88,8 @@ class VehicleStats {
     final tire = upgrades[UpgradeType.tires] ?? 0;
     final wgt = upgrades[UpgradeType.weight] ?? 0;
     final aero = upgrades[UpgradeType.aero] ?? 0;
+    final nitro = upgrades[UpgradeType.nitro] ?? 0;
+    final elec = upgrades[UpgradeType.electronics] ?? 0;
 
     // Apply upgrade scaling
     final power = v.enginePower * (1 + eng * 0.10); // +10% per level
@@ -88,11 +105,15 @@ class VehicleStats {
     final acceleration = (rawAccel * 1.6).clamp(0.0, 1.0);
 
     final handling = (grip * (1100 / mass)).clamp(0.0, 1.0);
+    final nitroPower = (0.35 + nitro * 0.13).clamp(0.0, 1.0);
+    final stability = (0.25 + elec * 0.15).clamp(0.0, 1.0);
 
     return VehicleStats(
       topSpeed: topSpeed.toDouble(),
       acceleration: acceleration.toDouble(),
       handling: handling.toDouble(),
+      nitroPower: nitroPower.toDouble(),
+      stability: stability.toDouble(),
     );
   }
 }
@@ -101,4 +122,29 @@ class VehicleStats {
 int upgradeCost(VehicleClass vClass, int currentLevel) {
   final classFactor = (vClass.index + 1);
   return (250 * classFactor * (currentLevel + 1) * 1.6).round();
+}
+
+/// Vehicle Mastery (Phase D) — levels 1..50 earned by racing each car.
+class Mastery {
+  static const int maxLevel = 50;
+
+  /// XP needed to advance from [level] to level+1 (rising curve).
+  static int xpForLevel(int level) => 100 + level * 60;
+
+  /// Returns (level, xpIntoLevel, xpForNext) for a given total XP.
+  static (int, int, int) resolve(int totalXp) {
+    int level = 1;
+    int remaining = totalXp;
+    while (level < maxLevel) {
+      final need = xpForLevel(level);
+      if (remaining < need) break;
+      remaining -= need;
+      level++;
+    }
+    final next = level >= maxLevel ? 0 : xpForLevel(level);
+    return (level, remaining, next);
+  }
+
+  /// Cash bonus multiplier from mastery level (up to +25% at L50).
+  static double cashBonus(int level) => 1.0 + (level - 1) / (maxLevel - 1) * 0.25;
 }

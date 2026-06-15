@@ -115,7 +115,7 @@ class _RaceSetupScreenState extends State<RaceSetupScreen> {
                 padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
-                    CarPreview(color: vehicle.bodyColor, width: 36, height: 66),
+                    CarPreview(color: gs.displayColor(vehicle.id), width: 36, height: 66),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(

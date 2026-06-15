@@ -66,18 +66,47 @@ class SpeedBurst extends PositionComponent {
   }
 }
 
-/// Crash explosion particles.
-class CrashFx extends PositionComponent {
-  CrashFx({required Vector2 position}) {
+/// Speed/nitro trail streak behind the player.
+class NitroTrail extends PositionComponent {
+  NitroTrail({required Vector2 position}) {
     this.position = position;
   }
+  double _life = 0;
+  static const double _maxLife = 0.4;
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    _life += dt;
+    position.y += 220 * dt;
+    if (_life >= _maxLife) removeFromParent();
+  }
+
+  @override
+  void render(Canvas canvas) {
+    final t = _life / _maxLife;
+    final paint = Paint()
+      ..color = Color.lerp(const Color(0xFFFFD23D), const Color(0xFFFF2D9B), t)!
+          .withValues(alpha: (1 - t) * 0.7)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
+    canvas.drawCircle(Offset.zero, 5 * (1 - t) + 2, paint);
+  }
+}
+
+/// Crash explosion particles.
+class CrashFx extends PositionComponent {
+  CrashFx({required Vector2 position, this.reduced = false}) {
+    this.position = position;
+  }
+  final bool reduced;
   final math.Random _rng = math.Random();
   final List<_P> _parts = [];
   double _life = 0;
 
   @override
   Future<void> onLoad() async {
-    for (int i = 0; i < 22; i++) {
+    final count = reduced ? 8 : 22;
+    for (int i = 0; i < count; i++) {
       final a = _rng.nextDouble() * math.pi * 2;
       final sp = 60 + _rng.nextDouble() * 220;
       _parts.add(_P(
@@ -152,6 +181,23 @@ class WeatherOverlay extends PositionComponent with HasGameReference {
           d.x = _rng.nextDouble() * game.size.x;
         }
       }
+    } else if (weather == Weather.sandstorm) {
+      while (_drops.length < 70) {
+        _drops.add(_Drop(
+          x: _rng.nextDouble() * game.size.x,
+          y: _rng.nextDouble() * game.size.y,
+          speed: 500 + _rng.nextDouble() * 400,
+          len: 8 + _rng.nextDouble() * 10,
+        ));
+      }
+      for (final d in _drops) {
+        d.y += d.speed * dt;
+        d.x += 220 * dt; // wind to the right
+        if (d.y > game.size.y || d.x > game.size.x) {
+          d.y = -20;
+          d.x = _rng.nextDouble() * game.size.x - 60;
+        }
+      }
     }
   }
 
@@ -182,6 +228,22 @@ class WeatherOverlay extends PositionComponent with HasGameReference {
       // slight darken
       canvas.drawRect(Rect.fromLTWH(0, 0, sz.x, sz.y),
           Paint()..color = Colors.black.withValues(alpha: 0.12));
+    } else if (weather == Weather.sandstorm) {
+      // sandy haze veil
+      final haze = Paint()
+        ..shader = LinearGradient(
+          colors: [
+            const Color(0xFFD9A05B).withValues(alpha: 0.18),
+            const Color(0xFFC2762E).withValues(alpha: 0.42),
+          ],
+          begin: Alignment.bottomCenter,
+          end: Alignment.topCenter,
+        ).createShader(Rect.fromLTWH(0, 0, sz.x, sz.y));
+      canvas.drawRect(Rect.fromLTWH(0, 0, sz.x, sz.y), haze);
+      final grain = Paint()..color = const Color(0xFFE8C089).withValues(alpha: 0.5);
+      for (final d in _drops) {
+        canvas.drawLine(Offset(d.x, d.y), Offset(d.x - 6, d.y + d.len), grain..strokeWidth = 2);
+      }
     }
   }
 }
