@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../audio/sound.dart';
 import '../core/theme.dart';
 import '../state/game_state.dart';
 import '../widgets/common.dart';
@@ -140,7 +141,12 @@ class _MainMenuState extends State<MainMenu> with SingleTickerProviderStateMixin
                   label: 'RACE',
                   icon: Icons.play_arrow_rounded,
                   height: 64,
-                  onTap: () => _go(const RaceSetupScreen()),
+                  onTap: () {
+                    _unlockAudio();
+                    Sound.uiTap();
+                    Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => const RaceSetupScreen()));
+                  },
                 ),
               ),
 
@@ -238,6 +244,15 @@ class _MainMenuState extends State<MainMenu> with SingleTickerProviderStateMixin
   }
 
   void _go(Widget screen) {
+    _unlockAudio();
+    Sound.uiTap();
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+  }
+
+  void _unlockAudio() {
+    final gs = context.read<GameState>();
+    Sound.unlock();
+    Sound.configure(sfx: gs.soundOn, music: gs.musicOn);
+    if (gs.musicOn) Sound.startMusic();
   }
 }

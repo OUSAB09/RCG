@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../audio/sound.dart';
 import '../data/vehicle_catalog.dart';
 import '../data/mission_generator.dart';
 import '../models/achievement.dart';
@@ -62,6 +63,10 @@ class GameState extends ChangeNotifier {
   bool colorblindMode = false;
   bool largeText = false;
   bool adFree = false; // premium package
+
+  // Audio (Phase K)
+  bool soundOn = true;
+  bool musicOn = true;
 
   bool _loaded = false;
   bool get loaded => _loaded;
@@ -228,6 +233,7 @@ class GameState extends ChangeNotifier {
     claimedAchievements.add(a.id);
     cash += a.reward;
     totalCashEarned += a.reward;
+    Sound.coin();
     _save();
     notifyListeners();
     return true;
@@ -311,6 +317,7 @@ class GameState extends ChangeNotifier {
     cash += m.rewardCash;
     gems += m.rewardGems;
     totalCashEarned += m.rewardCash;
+    Sound.coin();
     _save();
     notifyListeners();
     return true;
@@ -332,6 +339,25 @@ class GameState extends ChangeNotifier {
 
   void setLargeText(bool v) {
     largeText = v;
+    _save();
+    notifyListeners();
+  }
+
+  void setSound(bool v) {
+    soundOn = v;
+    Sound.configure(sfx: soundOn, music: musicOn);
+    _save();
+    notifyListeners();
+  }
+
+  void setMusic(bool v) {
+    musicOn = v;
+    Sound.configure(sfx: soundOn, music: musicOn);
+    if (musicOn) {
+      Sound.startMusic();
+    } else {
+      Sound.stopMusic();
+    }
     _save();
     notifyListeners();
   }
@@ -416,6 +442,8 @@ class GameState extends ChangeNotifier {
         colorblindMode = m['colorblindMode'] ?? false;
         largeText = m['largeText'] ?? false;
         adFree = m['adFree'] ?? false;
+        soundOn = m['soundOn'] ?? true;
+        musicOn = m['musicOn'] ?? true;
         _dailySeed = m['dailySeed'] ?? 0;
         _weeklySeed = m['weeklySeed'] ?? 0;
 
@@ -440,6 +468,7 @@ class GameState extends ChangeNotifier {
     if (leaderboard.where((e) => !e.isPlayer).isEmpty) _seedRivals();
     _trimLeaderboard();
     _refreshMissionsIfNeeded();
+    Sound.configure(sfx: soundOn, music: musicOn);
     _loaded = true;
     notifyListeners();
   }
@@ -491,6 +520,8 @@ class GameState extends ChangeNotifier {
         'colorblindMode': colorblindMode,
         'largeText': largeText,
         'adFree': adFree,
+        'soundOn': soundOn,
+        'musicOn': musicOn,
         'dailySeed': _dailySeed,
         'weeklySeed': _weeklySeed,
         'upgrades': upgrades.map((k, v) =>

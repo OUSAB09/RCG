@@ -3,6 +3,7 @@ import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../audio/sound.dart';
 import '../core/theme.dart';
 import '../game/racing_game.dart';
 import '../models/environment.dart';
@@ -41,6 +42,7 @@ class _GameScreenState extends State<GameScreen> {
   bool _started = false;
   bool _resultRecorded = false;
   bool _usedContinue = false;
+  bool _musicOn = true;
   Timer? _timer;
 
   @override
@@ -48,6 +50,7 @@ class _GameScreenState extends State<GameScreen> {
     super.initState();
     final gs = context.read<GameState>();
     _vehicleId = gs.selectedVehicleId;
+    _musicOn = gs.musicOn;
     _game = RacingGame(
       vehicle: gs.selectedVehicle,
       stats: gs.statsFor(_vehicleId),
@@ -57,6 +60,8 @@ class _GameScreenState extends State<GameScreen> {
       colorblindMode: gs.colorblindMode,
       onStateChanged: _onHud,
     );
+    // Pause menu music during the race; the engine drone takes over.
+    Sound.stopMusic();
     _startCountdown();
   }
 
@@ -101,6 +106,9 @@ class _GameScreenState extends State<GameScreen> {
   @override
   void dispose() {
     _timer?.cancel();
+    Sound.stopEngine();
+    // Resume menu music if it was on.
+    if (_musicOn) Sound.startMusic();
     super.dispose();
   }
 

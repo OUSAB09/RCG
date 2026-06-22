@@ -6,6 +6,7 @@ import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../audio/sound.dart';
 import '../models/environment.dart';
 import '../models/vehicle.dart';
 import 'components/player_car.dart';
@@ -123,12 +124,18 @@ class RacingGame extends FlameGame with KeyboardEvents, PanDetector {
   void beginRace() => started = true;
 
   void activateNitro() {
-    if (nitro > 0.05 && phase == GamePhase.running) {
+    if (nitro > 0.05 && phase == GamePhase.running && !nitroActive) {
       nitroActive = true;
+      Sound.nitroStart();
     }
   }
 
-  void deactivateNitro() => nitroActive = false;
+  void deactivateNitro() {
+    if (nitroActive) {
+      nitroActive = false;
+      Sound.nitroEnd();
+    }
+  }
 
   @override
   void onGameResize(Vector2 size) {
@@ -217,6 +224,12 @@ class RacingGame extends FlameGame with KeyboardEvents, PanDetector {
 
     // --- High-speed bonus: continuous cash while near top speed ---
     final speedFrac = speed / maxSpeedPx;
+
+    // --- Engine drone (procedural audio) ---
+    if (phase == GamePhase.running) {
+      Sound.engine(speedFrac.clamp(0.0, 1.0), nitroActive);
+    }
+
     if (speedFrac > 0.85) {
       _highSpeedAccum += dt;
       if (_highSpeedAccum >= 1.0) {
@@ -383,6 +396,7 @@ class RacingGame extends FlameGame with KeyboardEvents, PanDetector {
     cash += reward;
 
     final label = colorblindMode ? '${tier.symbol} ${tier.label}' : tier.label;
+    Sound.pass(tier == passExtreme ? 2 : (tier == passClose ? 1 : 0));
     add(FloatingText(
       text: '+\$$reward  $label',
       color: tier.color,
@@ -396,11 +410,19 @@ class RacingGame extends FlameGame with KeyboardEvents, PanDetector {
 
   void _crash() {
     phase = GamePhase.crashed;
+    Sound.stopEngine();
+    Sound.crash();
     add(CrashFx(position: player.position.clone(), reduced: reducedFlashing));
     player.crashed = true;
     nitroActive = false;
     HapticFeedback.heavyImpact();
     _emitHud();
+  }
+
+  @override
+  void onRemove() {
+    Sound.stopEngine();
+    super.onRemove();
   }
 
   /// Phase I — "Continue Run" after a crash (rewarded-ad simulation).

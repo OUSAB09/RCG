@@ -76,6 +76,33 @@ class SettingsScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               NeonCard(
+                glow: AppColors.neonCyan,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('AUDIO', style: AppTheme.display(16, color: AppColors.neonCyan)),
+                    const SizedBox(height: 4),
+                    _toggle(
+                      'Sound Effects',
+                      'Engine, nitro, passes & crashes',
+                      Icons.graphic_eq_rounded,
+                      gs.soundOn,
+                      gs.setSound,
+                      color: AppColors.neonCyan,
+                    ),
+                    _toggle(
+                      'Music',
+                      'Synthwave menu soundtrack',
+                      Icons.music_note_rounded,
+                      gs.musicOn,
+                      gs.setMusic,
+                      color: AppColors.neonCyan,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              NeonCard(
                 glow: AppColors.neonGreen,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -133,12 +160,13 @@ class SettingsScreen extends StatelessWidget {
   }
 
   Widget _toggle(String title, String subtitle, IconData icon, bool value,
-      void Function(bool) onChanged) {
+      void Function(bool) onChanged,
+      {Color color = AppColors.neonPurple}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          Icon(icon, color: AppColors.neonPurple, size: 20),
+          Icon(icon, color: color, size: 20),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -151,7 +179,7 @@ class SettingsScreen extends StatelessWidget {
           ),
           Switch(
             value: value,
-            activeThumbColor: AppColors.neonPurple,
+            activeThumbColor: color,
             onChanged: onChanged,
           ),
         ],
