@@ -15,6 +15,7 @@ import 'settings_screen.dart';
 import 'race_setup_screen.dart';
 import 'missions_screen.dart';
 import 'cosmetics_screen.dart';
+import 'season_screen.dart';
 
 class MainMenu extends StatefulWidget {
   const MainMenu({super.key});
@@ -59,6 +60,13 @@ class _MainMenuState extends State<MainMenu> with SingleTickerProviderStateMixin
                         value: '${gs.gems}',
                         color: AppColors.neonCyan),
                     const Spacer(),
+                    if (gs.dailyRewardAvailable)
+                      IconButton(
+                        onPressed: () => _openDailyReward(gs),
+                        icon: const Icon(Icons.card_giftcard_rounded,
+                            color: AppColors.neonYellow),
+                        tooltip: 'Daily reward',
+                      ),
                     IconButton(
                       onPressed: () => _go(const SettingsScreen()),
                       icon: const Icon(Icons.settings_rounded,
@@ -132,7 +140,15 @@ class _MainMenuState extends State<MainMenu> with SingleTickerProviderStateMixin
                 ),
               ),
 
-              const SizedBox(height: 18),
+              const SizedBox(height: 14),
+
+              // Seasonal event banner
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: _seasonBanner(gs),
+              ),
+
+              const SizedBox(height: 12),
 
               // Race button
               Padding(
@@ -189,6 +205,62 @@ class _MainMenuState extends State<MainMenu> with SingleTickerProviderStateMixin
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _seasonBanner(GameState gs) {
+    final season = gs.currentSeason;
+    final maxPoints = season.maxPoints;
+    final progress =
+        maxPoints == 0 ? 0.0 : (gs.seasonPoints / maxPoints).clamp(0.0, 1.0);
+    final claimable = gs.claimableSeasonTiers;
+    return NeonCard(
+      glow: season.color,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      onTap: () => _go(const SeasonScreen()),
+      child: Row(
+        children: [
+          Icon(season.icon, color: season.color, size: 26),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(season.name,
+                        style: AppTheme.body(14, color: Colors.white, weight: FontWeight.w800)),
+                    const SizedBox(width: 6),
+                    Text('SEASON',
+                        style: AppTheme.body(9, color: season.color, weight: FontWeight.w900)),
+                  ],
+                ),
+                const SizedBox(height: 5),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(5),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 6,
+                    backgroundColor: AppColors.bgElevated,
+                    valueColor: AlwaysStoppedAnimation(season.color),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          if (claimable > 0)
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: const BoxDecoration(
+                  color: AppColors.neonGreen, shape: BoxShape.circle),
+              child: Text('$claimable',
+                  style: AppTheme.body(11, color: Colors.black, weight: FontWeight.w900)),
+            )
+          else
+            Icon(Icons.chevron_right_rounded, color: season.color),
+        ],
       ),
     );
   }
@@ -254,5 +326,52 @@ class _MainMenuState extends State<MainMenu> with SingleTickerProviderStateMixin
     Sound.unlock();
     Sound.configure(sfx: gs.soundOn, music: gs.musicOn);
     if (gs.musicOn) Sound.startMusic();
+  }
+
+  void _openDailyReward(GameState gs) {
+    _unlockAudio();
+    final reward = gs.claimDailyReward();
+    if (reward == null) return;
+    final (cash, gems) = reward;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.card,
+        title: Row(children: [
+          const Icon(Icons.card_giftcard_rounded, color: AppColors.neonYellow),
+          const SizedBox(width: 8),
+          Text('Daily Reward!', style: AppTheme.display(18)),
+        ]),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Welcome back, racer. Here\'s your daily bonus:',
+                style: AppTheme.body(14, color: AppColors.textSecondary)),
+            const SizedBox(height: 14),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CurrencyChip(
+                    icon: Icons.payments_rounded,
+                    value: '+${fmtCash(cash)}',
+                    color: AppColors.neonGreen),
+                const SizedBox(width: 10),
+                CurrencyChip(
+                    icon: Icons.diamond_rounded,
+                    value: '+$gems',
+                    color: AppColors.neonCyan),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('AWESOME',
+                style: AppTheme.body(14, color: AppColors.neonGreen, weight: FontWeight.w800)),
+          ),
+        ],
+      ),
+    );
   }
 }

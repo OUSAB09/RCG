@@ -9,6 +9,7 @@ import '../data/mission_generator.dart';
 import '../models/achievement.dart';
 import '../models/cosmetic.dart';
 import '../models/mission.dart';
+import '../models/season.dart';
 import '../models/vehicle.dart';
 
 /// Central player profile + economy + persistence (cloud-save equivalent,
@@ -52,6 +53,14 @@ class GameState extends ChangeNotifier {
   List<Mission> missions = [];
   int _dailySeed = 0;
   int _weeklySeed = 0;
+
+  // Seasonal event (Phase H)
+  String seasonId = '';
+  int seasonPoints = 0;
+  Set<int> claimedSeasonTiers = {}; // tier indices claimed this season
+
+  // Daily reward chest (Phase I)
+  int _lastDailyReward = -1; // epoch day the chest was last opened
 
   // Leaderboards (timeframe). Each entry stores an epoch-day stamp.
   List<LeaderboardEntry> leaderboard = [];
@@ -215,6 +224,10 @@ class GameState extends ChangeNotifier {
         cash: cashEarned,
         combo: maxCombo);
 
+    // Seasonal event points
+    _refreshSeasonIfNeeded();
+    seasonPoints += _seasonPointsFor(distance, overtakes, maxCombo);
+
     _save();
     notifyListeners();
   }
@@ -321,6 +334,86 @@ class GameState extends ChangeNotifier {
     _save();
     notifyListeners();
     return true;
+  }
+
+  // ---------- Seasonal Event (Phase H) ----------
+
+  Season get currentSeason => seasonForWeek(_epochDay() ~/ 7);
+
+  /// Days remaining in the current weekly season.
+  int get seasonDaysLeft => 7 - (_epochDay() % 7);
+
+  void _refreshSeasonIfNeeded() {
+    final s = currentSeason;
+    if (seasonId != s.id) {
+      // New season started — reset progress & claims.
+      seasonId = s.id;
+      seasonPoints = 0;
+      claimedSeasonTiers = {};
+    }
+  }
+
+  /// Event points scale with race performance.
+  int _seasonPointsFor(int distance, int overtakes, int maxCombo) =>
+      (distance ~/ 25) + overtakes * 2 + maxCombo * 3;
+
+  bool tierUnlocked(int index) {
+    final tiers = currentSeason.tiers;
+    if (index < 0 || index >= tiers.length) return false;
+    return seasonPoints >= tiers[index].points;
+  }
+
+  bool tierClaimed(int index) => claimedSeasonTiers.contains(index);
+
+  bool claimSeasonTier(int index) {
+    if (!tierUnlocked(index) || tierClaimed(index)) return false;
+    final tier = currentSeason.tiers[index];
+    claimedSeasonTiers.add(index);
+    cash += tier.cash;
+    gems += tier.gems;
+    totalCashEarned += tier.cash;
+    if (tier.paintId != null) ownedPaints.add(tier.paintId!);
+    Sound.coin();
+    _save();
+    notifyListeners();
+    return true;
+  }
+
+  int get claimableSeasonTiers {
+    var n = 0;
+    for (var i = 0; i < currentSeason.tiers.length; i++) {
+      if (tierUnlocked(i) && !tierClaimed(i)) n++;
+    }
+    return n;
+  }
+
+  // ---------- Daily Reward Chest (Phase I) ----------
+
+  bool get dailyRewardAvailable => _lastDailyReward != _epochDay();
+
+  /// Opens the daily chest. Returns (cash, gems) granted, or null if already
+  /// claimed today.
+  (int, int)? claimDailyReward() {
+    if (!dailyRewardAvailable) return null;
+    _lastDailyReward = _epochDay();
+    // Reward grows slightly with player progression.
+    final c = 1000 + (totalRaces.clamp(0, 50)) * 40;
+    const g = 3;
+    cash += c;
+    gems += g;
+    totalCashEarned += c;
+    Sound.coin();
+    _save();
+    notifyListeners();
+    return (c, g);
+  }
+
+  /// Rewarded-ad: extra gems (Phase I monetization).
+  void grantRewardedGems(int n) {
+    gems += n;
+    Sound.coin();
+    _save();
+    notifyListeners();
   }
 
   // ---------- Settings ----------
@@ -446,6 +539,11 @@ class GameState extends ChangeNotifier {
         musicOn = m['musicOn'] ?? true;
         _dailySeed = m['dailySeed'] ?? 0;
         _weeklySeed = m['weeklySeed'] ?? 0;
+        seasonId = m['seasonId'] ?? '';
+        seasonPoints = m['seasonPoints'] ?? 0;
+        claimedSeasonTiers =
+            Set<int>.from((m['claimedSeasonTiers'] as List<dynamic>? ?? []));
+        _lastDailyReward = m['lastDailyReward'] ?? -1;
 
         final up = m['upgrades'] as Map<String, dynamic>? ?? {};
         upgrades = up.map((k, v) => MapEntry(
@@ -468,6 +566,7 @@ class GameState extends ChangeNotifier {
     if (leaderboard.where((e) => !e.isPlayer).isEmpty) _seedRivals();
     _trimLeaderboard();
     _refreshMissionsIfNeeded();
+    _refreshSeasonIfNeeded();
     Sound.configure(sfx: soundOn, music: musicOn);
     _loaded = true;
     notifyListeners();
@@ -524,6 +623,10 @@ class GameState extends ChangeNotifier {
         'musicOn': musicOn,
         'dailySeed': _dailySeed,
         'weeklySeed': _weeklySeed,
+        'seasonId': seasonId,
+        'seasonPoints': seasonPoints,
+        'claimedSeasonTiers': claimedSeasonTiers.toList(),
+        'lastDailyReward': _lastDailyReward,
         'upgrades': upgrades.map((k, v) =>
             MapEntry(k, v.map((kk, vv) => MapEntry(kk.toString(), vv)))),
         'missions': missions.map((e) => e.toJson()).toList(),
@@ -559,9 +662,14 @@ class GameState extends ChangeNotifier {
     ghostBestTrack = [];
     _dailySeed = 0;
     _weeklySeed = 0;
+    seasonId = '';
+    seasonPoints = 0;
+    claimedSeasonTiers = {};
+    _lastDailyReward = -1;
     _seedRivals();
     _trimLeaderboard();
     _refreshMissionsIfNeeded();
+    _refreshSeasonIfNeeded();
     await _save();
     notifyListeners();
   }

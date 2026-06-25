@@ -22,6 +22,10 @@ class _CosmeticsScreenState extends State<CosmeticsScreen> {
     final vehicle = gs.selectedVehicle;
     final appliedId = gs.appliedPaint[vehicleId] ?? kDefaultPaint.id;
     final previewColor = gs.displayColor(vehicleId);
+    // Exclusive paints only appear once earned via events.
+    final paints = kPaints
+        .where((p) => !p.exclusive || gs.ownsPaint(p.id))
+        .toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -78,9 +82,9 @@ class _CosmeticsScreenState extends State<CosmeticsScreen> {
                     crossAxisSpacing: 12,
                     childAspectRatio: 0.82,
                   ),
-                  itemCount: kPaints.length,
+                  itemCount: paints.length,
                   itemBuilder: (context, i) {
-                    final p = kPaints[i];
+                    final p = paints[i];
                     final owned = gs.ownsPaint(p.id);
                     final applied = appliedId == p.id;
                     final swatch = p.id == kDefaultPaint.id ? vehicle.bodyColor : p.color;

@@ -8,6 +8,7 @@ class PaintColor {
   final Color color;
   final int price; // cash; 0 = free/default
   final bool premium; // costs gems instead
+  final bool exclusive; // earned via events, not purchasable in the shop
 
   const PaintColor({
     required this.id,
@@ -15,6 +16,7 @@ class PaintColor {
     required this.color,
     required this.price,
     this.premium = false,
+    this.exclusive = false,
   });
 }
 
@@ -33,6 +35,10 @@ const List<PaintColor> kPaints = [
   PaintColor(id: 'midnight', name: 'Midnight Black', color: Color(0xFF1A1A24), price: 8000),
   PaintColor(id: 'aurora', name: 'Aurora', color: Color(0xFF22E0C0), price: 25, premium: true),
   PaintColor(id: 'inferno', name: 'Inferno', color: Color(0xFFFF2D5B), price: 25, premium: true),
+  // Season-exclusive paints (earned on the seasonal event track).
+  PaintColor(id: 'season_neon', name: 'Neon Pulse', color: Color(0xFFFF2DCB), price: 0, exclusive: true),
+  PaintColor(id: 'season_sand', name: 'Sandstorm', color: Color(0xFFE6B347), price: 0, exclusive: true),
+  PaintColor(id: 'season_aqua', name: 'Tidal', color: Color(0xFF1FE0E0), price: 0, exclusive: true),
 ];
 
 PaintColor paintById(String id) =>
