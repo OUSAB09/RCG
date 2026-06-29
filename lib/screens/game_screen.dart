@@ -349,6 +349,12 @@ class _GameScreenState extends State<GameScreen> {
                   if (Mastery.cashBonus(masteryLvl) > 1.0)
                     Text('includes +${(Mastery.cashBonus(masteryLvl) * 100 - 100).toInt()}% mastery bonus',
                         style: AppTheme.body(11, color: AppColors.textDim)),
+                  const SizedBox(height: 6),
+                  _resultRow(
+                    '${gs.rank.label}  (RP)',
+                    '${gs.lastRpDelta >= 0 ? '+' : ''}${gs.lastRpDelta}',
+                    gs.lastRpDelta >= 0 ? AppColors.neonCyan : AppColors.neonMagenta,
+                  ),
                   const SizedBox(height: 22),
 
                   // Continue run (rewarded-ad style) — once per race

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../core/theme.dart';
 import '../state/game_state.dart';
 import '../widgets/common.dart';
+import 'ranked_screen.dart';
 
 class LeaderboardScreen extends StatefulWidget {
   const LeaderboardScreen({super.key});
@@ -31,6 +32,33 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
           top: false,
           child: Column(
             children: [
+              // Ranked entry card
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                child: NeonCard(
+                  glow: gs.rank.tier.color,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const RankedScreen())),
+                  child: Row(children: [
+                    Icon(gs.rank.tier.icon, color: gs.rank.tier.color, size: 28),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('RANKED', style: AppTheme.body(11, color: AppColors.textDim, weight: FontWeight.w800)),
+                        Text(gs.rank.label,
+                            style: AppTheme.display(17, color: gs.rank.tier.color)),
+                      ],
+                    ),
+                    const Spacer(),
+                    Text('${gs.rankPoints} RP',
+                        style: AppTheme.body(13, color: AppColors.textSecondary)),
+                    const SizedBox(width: 6),
+                    Icon(Icons.chevron_right_rounded, color: gs.rank.tier.color),
+                  ]),
+                ),
+              ),
               // Scope tabs
               Padding(
                 padding: const EdgeInsets.all(16),

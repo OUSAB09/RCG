@@ -4,6 +4,7 @@ import 'package:apex_rush/state/game_state.dart';
 import 'package:apex_rush/data/vehicle_catalog.dart';
 import 'package:apex_rush/models/vehicle.dart';
 import 'package:apex_rush/models/season.dart';
+import 'package:apex_rush/models/rank.dart';
 
 void main() {
   test('Starter vehicle is owned and physics resolves sane stats', () {
@@ -38,5 +39,18 @@ void main() {
     }
     // Final tier should grant an exclusive paint.
     expect(a.tiers.last.paintId, isNotNull);
+  });
+
+  test('Rank resolution climbs tiers and caps at Apex', () {
+    expect(RankInfo.resolve(0).tier.name, 'Bronze');
+    expect(RankInfo.resolve(0).label, 'Bronze III');
+
+    final gold = RankInfo.resolve(1500);
+    expect(gold.tier.name, 'Gold');
+
+    final apex = RankInfo.resolve(99999);
+    expect(apex.tier.name, 'Apex');
+    expect(apex.rpForNext, 0); // top tier has no "next"
+    expect(apex.tierProgress, 1.0);
   });
 }

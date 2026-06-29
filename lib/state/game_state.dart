@@ -9,6 +9,7 @@ import '../data/mission_generator.dart';
 import '../models/achievement.dart';
 import '../models/cosmetic.dart';
 import '../models/mission.dart';
+import '../models/rank.dart';
 import '../models/season.dart';
 import '../models/vehicle.dart';
 
@@ -67,6 +68,11 @@ class GameState extends ChangeNotifier {
   int ghostBestScore = 0;
   List<double> ghostBestTrack = [];
 
+  // Ranked (Phase J)
+  int rankPoints = 0;
+  int peakRankPoints = 0;
+  int lastRpDelta = 0; // RP change from the most recent race (for result screen)
+
   // Accessibility (Phase L)
   bool reducedFlashing = false;
   bool colorblindMode = false;
@@ -106,6 +112,18 @@ class GameState extends ChangeNotifier {
 
   (int, int, int) masteryProgress(String vehicleId) =>
       Mastery.resolve(masteryXp[vehicleId] ?? 0);
+
+  RankInfo get rank => RankInfo.resolve(rankPoints);
+  RankInfo get peakRank => RankInfo.resolve(peakRankPoints);
+
+  /// RP awarded for a race result. Strong runs gain more; weak runs lose a
+  /// little so the ladder stays competitive (RP never drops below 0).
+  int rpDeltaFor(int score, int overtakes, int maxCombo) {
+    final gain = (score ~/ 200) + overtakes + maxCombo * 2;
+    // A baseline "par" the player must beat to gain ground; scales with rank.
+    final par = 12 + rank.tierIndex * 8;
+    return (gain - par).clamp(-25, 120);
+  }
 
   PlayerStatsView get statsView => PlayerStatsView(
         totalOvertakes: totalOvertakes,
@@ -227,6 +245,11 @@ class GameState extends ChangeNotifier {
     // Seasonal event points
     _refreshSeasonIfNeeded();
     seasonPoints += _seasonPointsFor(distance, overtakes, maxCombo);
+
+    // Ranked points (Phase J)
+    lastRpDelta = rpDeltaFor(score, overtakes, maxCombo);
+    rankPoints = (rankPoints + lastRpDelta).clamp(0, 1 << 30);
+    if (rankPoints > peakRankPoints) peakRankPoints = rankPoints;
 
     _save();
     notifyListeners();
@@ -544,6 +567,8 @@ class GameState extends ChangeNotifier {
         claimedSeasonTiers =
             Set<int>.from((m['claimedSeasonTiers'] as List<dynamic>? ?? []));
         _lastDailyReward = m['lastDailyReward'] ?? -1;
+        rankPoints = m['rankPoints'] ?? 0;
+        peakRankPoints = m['peakRankPoints'] ?? rankPoints;
 
         final up = m['upgrades'] as Map<String, dynamic>? ?? {};
         upgrades = up.map((k, v) => MapEntry(
@@ -627,6 +652,8 @@ class GameState extends ChangeNotifier {
         'seasonPoints': seasonPoints,
         'claimedSeasonTiers': claimedSeasonTiers.toList(),
         'lastDailyReward': _lastDailyReward,
+        'rankPoints': rankPoints,
+        'peakRankPoints': peakRankPoints,
         'upgrades': upgrades.map((k, v) =>
             MapEntry(k, v.map((kk, vv) => MapEntry(kk.toString(), vv)))),
         'missions': missions.map((e) => e.toJson()).toList(),
@@ -666,6 +693,9 @@ class GameState extends ChangeNotifier {
     seasonPoints = 0;
     claimedSeasonTiers = {};
     _lastDailyReward = -1;
+    rankPoints = 0;
+    peakRankPoints = 0;
+    lastRpDelta = 0;
     _seedRivals();
     _trimLeaderboard();
     _refreshMissionsIfNeeded();
