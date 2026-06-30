@@ -58,6 +58,7 @@ class _GameScreenState extends State<GameScreen> {
       weather: widget.weather,
       reducedFlashing: gs.reducedFlashing,
       colorblindMode: gs.colorblindMode,
+      bodyColor: gs.displayColor(_vehicleId),
       onStateChanged: _onHud,
     );
     // Pause menu music during the race; the engine drone takes over.

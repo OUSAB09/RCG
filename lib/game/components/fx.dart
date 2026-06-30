@@ -252,3 +252,94 @@ class _Drop {
   double x, y, speed, len;
   _Drop({required this.x, required this.y, required this.speed, required this.len});
 }
+
+/// Speed-line streaks + high-speed vignette overlay (Phase K presentation).
+/// Intensity is driven by a [speedFrac] callback (0..1) and a [boosting] flag.
+class SpeedLines extends PositionComponent with HasGameReference {
+  SpeedLines({
+    required this.speedFrac,
+    required this.boosting,
+    this.reduced = false,
+  });
+
+  final double Function() speedFrac;
+  final bool Function() boosting;
+  final bool reduced;
+
+  final math.Random _rng = math.Random();
+  final List<_Line> _lines = [];
+
+  @override
+  int get priority => 90; // above road/cars, below weather overlay
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    final frac = speedFrac().clamp(0.0, 1.0);
+    final boost = boosting();
+    // Only stream lines at high speed; more when boosting.
+    final target = reduced
+        ? 0
+        : ((frac > 0.55 ? (frac - 0.55) / 0.45 : 0.0) * (boost ? 46 : 26)).round();
+    while (_lines.length < target) {
+      _lines.add(_Line(
+        x: _rng.nextDouble() * game.size.x,
+        y: _rng.nextDouble() * game.size.y,
+        len: 40 + _rng.nextDouble() * 90,
+      ));
+    }
+    final speed = 900 + frac * 1800 + (boost ? 700 : 0);
+    for (final l in _lines) {
+      l.y += speed * dt;
+      if (l.y - l.len > game.size.y) {
+        l.y = -l.len;
+        l.x = _rng.nextDouble() * game.size.x;
+        l.len = 40 + _rng.nextDouble() * 90;
+      }
+    }
+    // Trim if target dropped (slowing down).
+    if (_lines.length > target && target >= 0) {
+      _lines.removeRange(target, _lines.length);
+    }
+  }
+
+  @override
+  void render(Canvas canvas) {
+    if (reduced) return;
+    final frac = speedFrac().clamp(0.0, 1.0);
+    final boost = boosting();
+
+    // Motion streaks toward the edges (subtle near center).
+    final cx = game.size.x / 2;
+    final color = boost ? const Color(0xFFFFC24D) : const Color(0xFFBFefff);
+    final paint = Paint()..strokeCap = StrokeCap.round;
+    for (final l in _lines) {
+      final edge = ((l.x - cx).abs() / cx).clamp(0.0, 1.0);
+      final a = (0.05 + edge * 0.22) * (boost ? 1.4 : 1.0);
+      paint
+        ..color = color.withValues(alpha: a.clamp(0.0, 0.5))
+        ..strokeWidth = 1.5 + edge * 1.5;
+      canvas.drawLine(Offset(l.x, l.y), Offset(l.x, l.y + l.len), paint);
+    }
+
+    // High-speed vignette (darkened, slightly warm when boosting).
+    if (frac > 0.7 || boost) {
+      final intensity = (boost ? 0.42 : ((frac - 0.7) / 0.3).clamp(0.0, 1.0) * 0.32);
+      final vignette = Paint()
+        ..shader = RadialGradient(
+          colors: [
+            Colors.transparent,
+            (boost ? const Color(0xFFFF7A1A) : Colors.black)
+                .withValues(alpha: intensity),
+          ],
+          stops: const [0.55, 1.0],
+        ).createShader(Rect.fromLTWH(0, 0, game.size.x, game.size.y));
+      canvas.drawRect(Rect.fromLTWH(0, 0, game.size.x, game.size.y), vignette);
+    }
+  }
+}
+
+class _Line {
+  double x, y, len;
+  _Line({required this.x, required this.y, required this.len});
+}

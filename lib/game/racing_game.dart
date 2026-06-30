@@ -38,12 +38,14 @@ class RacingGame extends FlameGame with KeyboardEvents, PanDetector {
     required this.weather,
     required this.reducedFlashing,
     this.colorblindMode = false,
+    Color? bodyColor,
     required this.onStateChanged,
-  });
+  }) : bodyColor = bodyColor ?? vehicle.bodyColor;
 
   final Vehicle vehicle;
   final VehicleStats stats;
   final RaceEnvironment environment;
+  final Color bodyColor;
   final Weather weather;
   final bool reducedFlashing;
   final bool colorblindMode;
@@ -111,7 +113,7 @@ class RacingGame extends FlameGame with KeyboardEvents, PanDetector {
     add(road);
 
     player = PlayerCar(
-      color: vehicle.bodyColor,
+      color: bodyColor,
       handling: (stats.handling * weather.gripMul +
               stats.stability * (1 - weather.gripMul) * 0.6)
           .clamp(0.15, 1.0),
@@ -119,6 +121,13 @@ class RacingGame extends FlameGame with KeyboardEvents, PanDetector {
     add(player);
 
     add(WeatherOverlay(weather: weather, env: environment));
+
+    // Speed-line streaks + high-speed vignette (Phase K presentation).
+    add(SpeedLines(
+      speedFrac: () => maxSpeedPx == 0 ? 0.0 : speed / maxSpeedPx,
+      boosting: () => nitroActive,
+      reduced: reducedFlashing,
+    ));
   }
 
   void beginRace() => started = true;
