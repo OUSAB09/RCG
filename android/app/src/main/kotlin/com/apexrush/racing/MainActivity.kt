@@ -1,5 +1,6 @@
-package com.apexrush.apex_rush
+package com.apexrush.racing
 
 import io.flutter.embedding.android.FlutterActivity
 
 class MainActivity : FlutterActivity()
+
